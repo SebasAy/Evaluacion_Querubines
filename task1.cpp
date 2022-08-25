@@ -24,17 +24,17 @@ void task1()
         if (Serial.available() > 0)
         {
             int dataRx = Serial.read();
-            if (dataRx == 'u')
+            if (dataRx == '1')
             {
-                Serial.print("1 BTN\n");
+                Serial.print("BTN 1\n");
                 buttonEvt.trigger = true;
-                buttonEvt.whichButton = BUTTONS::1_BTN;
+                buttonEvt.whichButton = BUTTONS::BTN_ONE;
             }
-            if (dataRx == 'd')
+            if (dataRx == '2')
             {
-                Serial.print("2 BTN\n");
+                Serial.print("BTN 2\n");
                 buttonEvt.trigger = true;
-                buttonEvt.whichButton = BUTTONS::2_BTN;
+                buttonEvt.whichButton = BUTTONS::BTN_TWO;
             }
         }
         break;

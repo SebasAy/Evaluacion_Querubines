@@ -8,110 +8,59 @@ void task2()
     {
         INIT,
         WAIT_PRESS,
-        WAIT_RELEASE,
-        RAPID_MODE,
-        SLOW_MODE,
-        MID_MODE
+        WAIT_STABLE,
+        WAIT_RELEASE
     };
     static TaskState taskState = TaskState::INIT;
     static uint8_t lastButtonPressed;
     static uint32_t initStableTime;
 
-    const uint8_t 1_BTN_PIN = 13;
-    const uint8_t 2_BTN_PIN = 32;
+    const uint8_t ONE_BTN_PIN = 13;
+    const uint8_t TWO_BTN_PIN = 12;
+    const uint32_t STABLE_TIME = 100;
 
     switch (taskState)
     {
     case TaskState::INIT:
     {
-        pinMode(1_BTN_PIN, INPUT_PULLUP);
-        pinMode(2_BTN_PIN, INPUT_PULLUP);
+        pinMode(ONE_BTN_PIN, INPUT_PULLUP);
+        pinMode(TWO_BTN_PIN, INPUT_PULLUP);
 
-        taskState = TaskState::SLOW_MODE; 
+        taskState = TaskState::WAIT_PRESS; 
         break;
     }
     case TaskState::WAIT_PRESS:
     {
-        if(digitalRead(1_BTN_PIN) == LOW){
-            lastButtonPressed = 1_BTN_PIN;
+        if(digitalRead(ONE_BTN_PIN) == LOW){
+            lastButtonPressed = ONE_BTN_PIN;
             initStableTime = millis();
-            taskState = TaskState::SLOW_MODE;
+            taskState = TaskState::WAIT_STABLE;
         }
-        if(digitalRead(2_BTN_PIN) == LOW){
-            lastButtonPressed = 2_BTN_PIN;
+        if(digitalRead(TWO_BTN_PIN) == LOW){
+            lastButtonPressed = TWO_BTN_PIN;
             initStableTime = millis();
             taskState = TaskState::WAIT_STABLE;
         }
         break;
     }
-    case TaskState::WAIT_RELEASE:
+    case TaskState::WAIT_STABLE:
     {
+        if(digitalRead(lastButtonPressed) != LOW){
+            taskState = TaskState::WAIT_PRESS;
+        }
+        else if ( (millis() - initStableTime) > STABLE_TIME){
+            if(lastButtonPressed == ONE_BTN_PIN) buttonEvt.whichButton = BUTTONS::BTN_ONE;
+            else if(lastButtonPressed == TWO_BTN_PIN) buttonEvt.whichButton = BUTTONS::BTN_TWO;
+            buttonEvt.trigger = true;
+            taskState = TaskState::WAIT_RELEASE;
+        }
+        break;
+    }
+    case TaskState::WAIT_RELEASE:{
         if(digitalRead(lastButtonPressed) == HIGH){
             taskState = TaskState::WAIT_PRESS;
         }
         break;
-    }
-    case TaskState::SLOW_MODE:
-    {
-        initStableTime = millis();
-        if((millis()-initStableTime)>1000){
-            if(lastButtonPressed == 1_BTN_PIN) buttonEvt.whichButton = BUTTONS::O_BTN;
-            else if(lastButtonPressed == 2_BTN_PIN) buttonEvt.whichButton = BUTTONS::F_BTN;
-            buttonEvt.trigger = true;
-            taskState = TaskState::WAIT_RELEASE;
-        }
-        if(digitalRead(1_BTN_PIN) == LOW){
-            if(lastButtonPressed == 1_BTN_PI) buttonEvt.whichButton = BUTTONS::O_BTN;
-            else if(lastButtonPressed == 2_BTN_PIN) buttonEvt.whichButton = BUTTONS::F_BTN;
-            buttonEvt.trigger = true;
-            taskState = TaskState::LOW_MODE;
-            if(digitalRead(2_BTN_PIN) == LOW){
-            if(lastButtonPressd == 1_BTN_PIN) buttonEvt.whichButton = BUTTONS::O_BTN;
-            else if(lastButtonPressed == 2_BTN_PIN) buttonEvt.whichButton = BUTTONS::F_BTN;
-            buttonEvt.trigger = true;
-            taskState = TaskState::RAPID_MODE;
-        }
-        if(digitalRead(2_BTN_PIN) == LOW){
-            if(lastButtonPressd == 1_BTN_PIN) buttonEvt.whichButton = BUTTONS::O_BTN;
-            else if(lastButtonPressed == 2_BTN_PIN) buttonEvt.whichButton = BUTTONS::F_BTN;
-            buttonEvt.trigger = true;
-            taskState = TaskState::MID_MODE;
-    }
-    case TaskState::MID_MODE:
-    {
-        initStableTime = millis();
-        if((millis()-initStableTime)>500){
-            if(lastButtonPressed == 1_BTN_PIN) buttonEvt.whichButton = BUTTONS::O_BTN;
-            else if(lastButtonPressed == 2_BTN_PIN) buttonEvt.whichButton = BUTTONS::F_BTN;
-            buttonEvt.trigger = true;
-            taskState = TaskState::WAIT_RELEASE;
-        }
-        if(digitalRead(1_BTN_PIN) == LOW){
-            if(lastButtonPressed == 1_BTN_PIN) buttonEvt.whichButton = BUTTONS::O_BTN;
-            else if(lastButtonPressed == 2_BTN_PIN) buttonEvt.whichButton = BUTTONS::F_BTN;
-            buttonEvt.trigger = true;
-            taskState = TaskState::MID_MODE;
-            if(digitalRead(2_BTN_PIN) == LOW){
-            if(lastButtonPressd == 1_BTN_PIN) buttonEvt.whichButton = BUTTONS::O_BTN;
-            else if(lastButtonPressed == 2_BTN_PIN) buttonEvt.whichButton = BUTTONS::F_BTN;
-            buttonEvt.trigger = true;
-            taskState = TaskState::RAPID_MODE;
-        }
-        if(digitalRead(2_BTN_PIN) == LOW){
-            if(lastButtonPressd == 1_BTN_PIN) buttonEvt.whichButton = BUTTONS::O_BTN;
-            else if(lastButtonPressed == 2_BTN_PIN) buttonEvt.whichButton = BUTTONS::F_BTN;
-            buttonEvt.trigger = true;e
-            taskState = TaskState::LOW_MODE;
-    }
-    case TaskState::RAPID_MODE:
-    {
-        initStableTime = millis();
-        if((millis()-initStableTime)>250){
-            if(lastButtonPressed == 1_BTN_PIN) buttonEvt.whichButton = BUTTONS::O_BTN;
-            else if(lastButtonPressed == 2_BTN_PIN) buttonEvt.whichButton = BUTTONS::F_BTN;
-            buttonEvt.trigger = true;
-            taskState = TaskState::WAIT_RELEASE;
-        }
     }
 
     default:

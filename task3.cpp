@@ -16,99 +16,113 @@ static bool compareKeys(BUTTONS *pSecret, BUTTONS *pKey)
     return correct;
 }
 
-void task3()
-{
-
-    enum class TaskStates
+void task3(){
+     enum class TaskStates
     {
         INIT,
         WAIT_CONFIG,
-        COUNTING
+        SLOW_MODE,
+        MID_MODE,
+        RAPID_MODE
     };
-    static TaskStates taskState = TaskStates::INIT;
-    const uint8_t ledBombCounting = 26;
-    const uint8_t ledBombBoom = 25;
-    const uint32_t BOMBINTERVAL = 1000U;
-    const uint32_t LEDCOUNTERINTERVAL = 500U;
 
-    static uint8_t bombCounter;
-    static BUTTONS secret[5] = {BUTTONS::1_BTN, BUTTONS::1_BTN,
-                                BUTTONS::2_BTN, BUTTONS::2_BTN,
-                                BUTTONS::1_BTN};
+    static TaskStates taskState = TaskStates::INIT;
+    const uint8_t led = 14;
+    static uint8_t keyCounter;
+    bool ledstate=true;
+    TaskStates currentState;
+    TaskStates lastState = TaskStates::SLOW_MODE;
+
+    static BUTTONS secret[5] = {BUTTONS::BTN_ONE, BUTTONS::BTN_ONE,
+                                BUTTONS::BTN_TWO, BUTTONS::BTN_TWO,
+                                BUTTONS::BTN_ONE
+                                };
 
     static BUTTONS disarmKey[5] = {BUTTONS::NONE};
-
-    static uint8_t ledBombCountingState;
-    static uint32_t initBombTimer;
-    static uint32_t initLedCounterTimer;
-    static uint8_t keyCounter;
 
     switch (taskState)
     {
     case TaskStates::INIT:
     {
-
-        pinMode(ledBombCounting, OUTPUT);
-        pinMode(ledBombBoom, OUTPUT);
-        digitalWrite(ledBombBoom, LOW);
-        ledBombCountingState = HIGH;
-        digitalWrite(ledBombCounting, ledBombCountingState);
-        bombCounter = 20;
-        keyCounter = 0;
+        pinMode(led, OUTPUT);
+        digitalWrite(led, HIGH);
+        ledstate=true;
+        keyCounter=0;
         taskState = TaskStates::WAIT_CONFIG;
         break;
     }
     case TaskStates::WAIT_CONFIG:
     {
-
         if (buttonEvt.trigger == true)
         {
             buttonEvt.trigger = false;
-            if (buttonEvt.whichButton == BUTTONS::1_BTN)
+            if (buttonEvt.whichButton == BUTTONS::BTN_ONE && lastState == TaskStates::SLOW_MODE)
             {
-                if (bombCounter < 60)
-                    bombCounter++;
+                digitalWrite(led, LOW);
+                ledstate=false;
+                if (buttonEvt.whichButton == BUTTONS::BTN_ONE && ledstate==false)
+                {
+                    taskState = TaskStates::SLOW_MODE;
+                    currentState = TaskStates::SLOW_MODE;
+                }
+                if (buttonEvt.whichButton == BUTTONS::BTN_TWO && ledstate==false)
+                {
+                    taskState=TaskStates::RAPID_MODE;
+                    keyCounter = 0;
+                }
             }
-            else if (buttonEvt.whichButton == BUTTONS::2_BTN)
+            if (buttonEvt.whichButton == BUTTONS::BTN_TWO && lastState == TaskStates::SLOW_MODE)
             {
-                if (bombCounter > 10)
-                    bombCounter--;
+                taskState=TaskStates::MID_MODE;
+                currentState = TaskStates::MID_MODE;
+            }
+            if (buttonEvt.whichButton == BUTTONS::BTN_ONE && lastState == TaskStates::MID_MODE)
+            {
+                digitalWrite(led, HIGH);
+                ledstate=true;
+                if (buttonEvt.whichButton == BUTTONS::BTN_ONE && ledstate==true)
+                {
+                    taskState = TaskStates::MID_MODE;
+                    currentState = TaskStates::MID_MODE;
+                }
+                if (buttonEvt.whichButton == BUTTONS::BTN_TWO && ledstate==true)
+                {
+                    taskState=TaskStates::RAPID_MODE;
+                    keyCounter = 0;
+                }
+            }
+            if (buttonEvt.whichButton == BUTTONS::BTN_TWO && lastState == TaskStates::MID_MODE)
+            {
+                taskState=TaskStates::SLOW_MODE;
+                currentState = TaskStates::SLOW_MODE;
             }
         }
-
         break;
     }
-    case TaskStates::COUNTING:
+    case TaskStates::SLOW_MODE:
     {
-
-        uint32_t timeNow = millis();
-
-        if ((timeNow - initBombTimer) > BOMBINTERVAL)
-        {
-            initBombTimer = timeNow;
-            bombCounter--;
-            Serial.print("Counter: ");
-            Serial.print(bombCounter);
-            Serial.print("\n");
-            if (bombCounter == 0)
-            {
-                ledBombCountingState = HIGH;
-                Serial.print("BOMB BOOM\n");
-                digitalWrite(ledBombBoom, HIGH);
-                delay(2000);
-                digitalWrite(ledBombBoom, LOW);
-                digitalWrite(ledBombCounting, ledBombCountingState);
-                bombCounter = 20;
-                taskState = TaskStates::WAIT_CONFIG;
-            }
-        }
-        if ((timeNow - initLedCounterTimer) > LEDCOUNTERINTERVAL)
-        {
-            initLedCounterTimer = timeNow;
-            ledBombCountingState = !ledBombCountingState;
-            digitalWrite(ledBombCounting, ledBombCountingState);
-        }
-
+        digitalWrite(led, HIGH);
+        delay(1000);
+        digitalWrite(led, LOW);
+        lastState=TaskStates::SLOW_MODE;
+        taskState=TaskStates::WAIT_CONFIG;
+        break;
+    }
+    case TaskStates::MID_MODE:
+    {
+        digitalWrite(led, HIGH);
+        delay(500);
+        digitalWrite(led, LOW);
+        lastState=TaskStates::MID_MODE;
+        taskState=TaskStates::WAIT_CONFIG;
+        break;
+    }
+    case TaskStates::RAPID_MODE:
+    {
+        digitalWrite(led, HIGH);
+        delay(250);
+        
+        lastState=TaskStates::RAPID_MODE;
         if (buttonEvt.trigger == true)
         {
             buttonEvt.trigger = false;
@@ -119,20 +133,17 @@ void task3()
                 keyCounter = 0;
                 if (compareKeys(secret, disarmKey) == true)
                 {
-                    ledBombCountingState = HIGH;
-                    digitalWrite(ledBombCounting, ledBombCountingState);
-                    Serial.print("BOMB DISARM\n");
-                    bombCounter = 20;
-                    taskState = TaskStates::WAIT_CONFIG;
+                    taskState = currentState;
+                    taskState=TaskStates::WAIT_CONFIG;
                 }
             }
         }
-
         break;
     }
     default:
-    {
-        break;
+    {}
     }
-    }
+
+
+
 }
