@@ -29,9 +29,15 @@ void task3(){
     static TaskStates taskState = TaskStates::INIT;
     const uint8_t led = 14;
     static uint8_t keyCounter;
-    bool ledstate=true;
+    static bool ledstate = true;
+    static bool ledBlink = true;
     TaskStates currentState;
     TaskStates lastState = TaskStates::SLOW_MODE;
+    
+    static uint32_t lastTime;
+    static constexpr uint32_t SLOW = 1000U;
+    static constexpr uint32_t MID = 500U;
+    static constexpr uint32_t FAST = 250U;
 
     static BUTTONS secret[5] = {BUTTONS::BTN_ONE, BUTTONS::BTN_ONE,
                                 BUTTONS::BTN_TWO, BUTTONS::BTN_TWO,
@@ -49,10 +55,12 @@ void task3(){
         ledstate=true;
         keyCounter=0;
         taskState = TaskStates::WAIT_CONFIG;
+        lastTime = millis();
         break;
     }
-    case TaskStates::WAIT_CONFIG:
+    case TaskStates::WAIT_CONFIG:           
     {
+        uint32_t currentTime = millis();
         if (buttonEvt.trigger == true)
         {
             buttonEvt.trigger = false;
@@ -101,28 +109,35 @@ void task3(){
     }
     case TaskStates::SLOW_MODE:
     {
-        digitalWrite(led, HIGH);
-        delay(1000);
-        digitalWrite(led, LOW);
+        if( (currentTime - lasTime) >= SLOW ){
+                lasTime = currentTime;
+                digitalWrite(led, ledBlink);
+                ledBlink = !ledBlink;
+            }
         lastState=TaskStates::SLOW_MODE;
         taskState=TaskStates::WAIT_CONFIG;
         break;
     }
     case TaskStates::MID_MODE:
     {
-        digitalWrite(led, HIGH);
-        delay(500);
-        digitalWrite(led, LOW);
+         if( (currentTime - lasTime) >= MID ){
+                lasTime = currentTime;
+                digitalWrite(led, ledBlink);
+                ledBlink = !ledBlink;
+            }
         lastState=TaskStates::MID_MODE;
         taskState=TaskStates::WAIT_CONFIG;
         break;
     }
     case TaskStates::RAPID_MODE:
     {
-        digitalWrite(led, HIGH);
-        delay(250);
-        
         lastState=TaskStates::RAPID_MODE;
+         if( (currentTime - lasTime) >= FAST ){
+                lasTime = currentTime;
+                digitalWrite(led, ledBlink);
+                ledBlink = !ledBlink;
+            }
+
         if (buttonEvt.trigger == true)
         {
             buttonEvt.trigger = false;
@@ -134,7 +149,6 @@ void task3(){
                 if (compareKeys(secret, disarmKey) == true)
                 {
                     taskState = currentState;
-                    taskState=TaskStates::WAIT_CONFIG;
                 }
             }
         }
