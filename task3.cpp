@@ -7,7 +7,8 @@ static bool compareKeys(BUTTONS *pSecret, BUTTONS *pKey)
     bool correct = true;
     for (uint8_t i = 0; i < 5; i++)
     {
-        if (pSecret[i] != pKey[i]){
+        if (pSecret[i] != pKey[i])
+        {
             correct = false;
             break;
         }
@@ -16,24 +17,26 @@ static bool compareKeys(BUTTONS *pSecret, BUTTONS *pKey)
     return correct;
 }
 
-void task3(){
-     enum class TaskStates
+void task3()
+{
+    enum class TaskStates
     {
         INIT,
-        WAIT_CONFIG,
         SLOW_MODE,
+        WAIT_SLOW,
+        PERM_OFF,
         MID_MODE,
+        WAIT_MID,
+        PERM_ON,
         RAPID_MODE
     };
 
     static TaskStates taskState = TaskStates::INIT;
     const uint8_t led = 14;
     static uint8_t keyCounter;
-    static bool ledstate = true;
-    static bool ledBlink = true;
-    TaskStates currentState = TaskStates::SLOW_MODE;
-    TaskStates lastState = TaskStates::SLOW_MODE;
-    
+    static bool ledBlink;
+    static uint8_t currentstate;
+
     static uint32_t lastTime;
     static constexpr uint32_t SLOW = 1000U;
     static constexpr uint32_t MID = 500U;
@@ -41,8 +44,7 @@ void task3(){
 
     static BUTTONS secret[5] = {BUTTONS::BTN_ONE, BUTTONS::BTN_ONE,
                                 BUTTONS::BTN_TWO, BUTTONS::BTN_TWO,
-                                BUTTONS::BTN_ONE
-                                };
+                                BUTTONS::BTN_ONE};
 
     static BUTTONS disarmKey[5] = {BUTTONS::NONE};
 
@@ -51,102 +53,156 @@ void task3(){
     case TaskStates::INIT:
     {
         pinMode(led, OUTPUT);
-        digitalWrite(led, HIGH);
-        ledstate=true;
-        keyCounter=0;
-        taskState = TaskStates::WAIT_CONFIG;
+        ledBlink = true;
+        digitalWrite(led, ledBlink);
+
+        keyCounter = 0;
         lastTime = millis();
-        currentState = TaskStates::WAIT_CONFIG;
-        lastState = TaskStates::SLOW_MODE;
-        break;
-    }
-    case TaskStates::WAIT_CONFIG:           
-    {
-        currentState=TaskStates::WAIT_CONFIG;
-        if (buttonEvt.trigger == true)
-        {
-            buttonEvt.trigger = false;
-            if (buttonEvt.whichButton == BUTTONS::BTN_ONE && lastState == TaskStates::SLOW_MODE)
-            {
-                digitalWrite(led, LOW);
-                ledstate=false;
-                if (buttonEvt.whichButton == BUTTONS::BTN_ONE && ledstate==false)
-                {
-                    currentState = TaskStates::SLOW_MODE;
-                    taskState = TaskStates::SLOW_MODE;
-                }
-                if (buttonEvt.whichButton == BUTTONS::BTN_TWO && ledstate==false)
-                {
-                    currentState = TaskStates::SLOW_MODE;
-                    keyCounter = 0;
-                    taskState=TaskStates::RAPID_MODE;
-                    
-                }
-            }
-            if (buttonEvt.whichButton == BUTTONS::BTN_TWO && lastState == TaskStates::SLOW_MODE)
-            {
-                currentState = TaskStates::MID_MODE;
-                lastState = TaskStates::MID_MODE;
-                taskState=TaskStates::MID_MODE;
-            }
-            if (buttonEvt.whichButton == BUTTONS::BTN_ONE && lastState == TaskStates::MID_MODE)
-            {
-                digitalWrite(led, HIGH);
-                ledstate=true;
-                if (buttonEvt.whichButton == BUTTONS::BTN_ONE && ledstate==true)
-                {
-                    currentState = TaskStates::MID_MODE;
-                    taskState = TaskStates::MID_MODE;
-                }
-                if (buttonEvt.whichButton == BUTTONS::BTN_TWO && ledstate==true)
-                {
-                    currentState = TaskStates::MID_MODE;
-                    keyCounter = 0;
-                    taskState=TaskStates::RAPID_MODE;
-                }
-            }
-            if (buttonEvt.whichButton == BUTTONS::BTN_TWO && lastState == TaskStates::MID_MODE)
-            {
-                currentState = TaskStates::SLOW_MODE;
-                lastState = TaskStates::SLOW_MODE;
-                taskState=TaskStates::SLOW_MODE;
-            }
-        }
+        taskState = TaskStates::SLOW_MODE;
+
         break;
     }
     case TaskStates::SLOW_MODE:
     {
         uint32_t currentTime = millis();
-        if( (currentTime - lastTime) >= SLOW ){
-                lastTime = currentTime;
-                digitalWrite(led, ledBlink);
-                ledBlink = !ledBlink;
+        if ((currentTime - lastTime) > SLOW)
+        {
+            lastTime = currentTime;
+            ledBlink = !ledBlink;
+            digitalWrite(led, ledBlink);
+        }
+
+        if (buttonEvt.trigger == true)
+        {
+            buttonEvt.trigger = false;
+            if (buttonEvt.whichButton == BUTTONS::BTN_ONE)
+            {
+                taskState = TaskStates::WAIT_SLOW;
             }
-        lastState=TaskStates::SLOW_MODE;
-        taskState=TaskStates::WAIT_CONFIG;
+            else if (buttonEvt.whichButton == BUTTONS::BTN_TWO)
+            {
+                ledBlink = true;
+                digitalWrite(led, ledBlink);
+                lastTime = currentTime;
+                taskState = TaskStates::MID_MODE;
+            }
+        }
+
+        break;
+    }
+    case TaskStates::WAIT_SLOW:
+    {
+        uint32_t currentTime = millis();
+        if ((currentTime - lastTime) > 1000)
+        {
+            ledBlink = false;
+            digitalWrite(led, ledBlink);
+            currentstate = 1;
+            taskState = TaskStates::PERM_OFF;
+        }
+        break;
+    }
+    case TaskStates::PERM_OFF:
+    {
+
+        if (buttonEvt.trigger == true)
+        {
+            buttonEvt.trigger = false;
+            if (buttonEvt.whichButton == BUTTONS::BTN_ONE)
+            {
+                ledBlink = true;
+                digitalWrite(led, ledBlink);
+                lastTime = millis();
+                taskState = TaskStates::SLOW_MODE;
+            }
+            else if (buttonEvt.whichButton == BUTTONS::BTN_TWO)
+            {
+                keyCounter = 0;
+                ledBlink = true;
+                digitalWrite(led, ledBlink);
+                currentstate = 1;
+                lastTime = millis();
+                taskState = TaskStates::RAPID_MODE;
+            }
+        }
         break;
     }
     case TaskStates::MID_MODE:
     {
         uint32_t currentTime = millis();
-         if( (currentTime - lastTime) >= MID ){
+        if ((currentTime - lastTime) > MID)
+        {
+            lastTime = currentTime;
+            digitalWrite(led, ledBlink);
+            ledBlink = !ledBlink;
+        }
+        if (buttonEvt.trigger == true)
+        {
+            buttonEvt.trigger = false;
+            if (buttonEvt.whichButton == BUTTONS::BTN_ONE)
+            {
+                currentstate = 2;
+                lastTime = currentTime;
+                ledBlink = true;
+                digitalWrite(led, ledBlink);
+                taskState = TaskStates::WAIT_MID;
+            }
+            else if (buttonEvt.whichButton == BUTTONS::BTN_TWO)
+            {
+                ledBlink = true;
                 lastTime = currentTime;
                 digitalWrite(led, ledBlink);
-                ledBlink = !ledBlink;
+                taskState = TaskStates::SLOW_MODE;
             }
-        lastState=TaskStates::MID_MODE;
-        taskState=TaskStates::WAIT_CONFIG;
+        }
+        break;
+    }
+    case TaskStates::WAIT_MID:
+    {
+        uint32_t currentTime = millis();
+        if ((currentTime - lastTime) > SLOW)
+        {
+            lastTime = currentTime;
+            ledBlink = true;
+            digitalWrite(led, ledBlink);
+            // LedBñlin sincronizacdor con el estado del led
+            currentstate = 2;
+            taskState = TaskStates::PERM_ON;
+        }
+        break;
+    }
+    case TaskStates::PERM_ON:
+    {
+        if (buttonEvt.trigger == true)
+        {
+            buttonEvt.trigger = false;
+            if (buttonEvt.whichButton == BUTTONS::BTN_ONE)
+            {
+                ledBlink = true;
+                digitalWrite(led, ledBlink);
+                taskState = TaskStates::MID_MODE;
+            }
+            else if (buttonEvt.whichButton == BUTTONS::BTN_TWO)
+            {
+                ledBlink = true;
+                digitalWrite(led, ledBlink);
+                keyCounter = 0;
+                currentstate = 2;
+                taskState = TaskStates::RAPID_MODE;
+            }
+        }
+
         break;
     }
     case TaskStates::RAPID_MODE:
     {
         uint32_t currentTime = millis();
-        lastState=TaskStates::RAPID_MODE;
-         if( (currentTime - lastTime) >= FAST ){
-                lastTime = currentTime;
-                digitalWrite(led, ledBlink);
-                ledBlink = !ledBlink;
-            }
+        if ((currentTime - lastTime) > FAST)
+        {
+            lastTime = currentTime;
+            digitalWrite(led, ledBlink);
+            ledBlink = !ledBlink;
+        }
 
         if (buttonEvt.trigger == true)
         {
@@ -158,16 +214,29 @@ void task3(){
                 keyCounter = 0;
                 if (compareKeys(secret, disarmKey) == true)
                 {
-                    taskState = currentState;
+                    if (currentstate == 1)
+                    {
+                        lastTime = currentTime;
+                        ledBlink = true;
+                        digitalWrite(led, ledBlink);
+                        taskState = TaskStates::SLOW_MODE;
+                    }
+                    if (currentstate == 2)
+                    {
+                        lastTime = currentTime;
+                        ledBlink = true;
+                        digitalWrite(led, ledBlink);
+                        taskState = TaskStates::MID_MODE;
+                    }
                 }
             }
         }
         break;
     }
     default:
-    {}
+    {
+
+        break;
     }
-
-
-
+    }
 }
